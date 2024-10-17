@@ -1,0 +1,42 @@
+version: '3.8'  # Versi Compose terbaru
+
+services:
+  jenkins:
+    build: .
+    container_name: jenkins-dind
+    restart: unless-stopped
+    ports:
+      - "8080:8080"  # Akses Jenkins di port 8080
+      - "50000:50000"  # Port untuk agen Jenkins
+    environment:
+      - DOCKER_HOST=tcp://docker:2375  # Mengarahkan Jenkins ke daemon Docker DinD
+      - DOCKER_TLS_CERTDIR=/certs  # Sertifikat TLS untuk keamanan
+    volumes:
+      - jenkins_home:/var/jenkins_home  # Volume untuk menyimpan konfigurasi Jenkins
+      - ./projects:/var/jenkins_home/projects  # Volume untuk menyimpan project
+    depends_on:
+      - docker  # Pastikan Jenkins hanya berjalan setelah Docker service tersedia
+    networks:
+      - jenkins_network
+
+  docker:
+    image: docker:dind  # Docker-in-Docker (DinD) image
+    container_name: docker-dind
+    privileged: true  # Memungkinkan Docker-in-Docker
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs  # Sertifikat TLS
+    volumes:
+      - docker-certs:/certs  # Volume untuk menyimpan sertifikat
+      - /var/run/docker.sock:/var/run/docker.sock  # Socket Docker (opsional untuk akses host daemon)
+    networks:
+      - jenkins_network
+
+volumes:
+  jenkins_home:
+    driver: local
+  docker-certs:
+    driver: local
+
+networks:
+  jenkins_network:
+    driver: bridge
